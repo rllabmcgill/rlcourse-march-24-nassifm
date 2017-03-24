@@ -1,0 +1,290 @@
+\documentclass[11pt]{beamer}
+
+\usetheme{Singapore}
+\usecolortheme{orchid}
+\useinnertheme{rounded}
+\setbeamertemplate{footline}[frame number]
+%\setbeamertemplate{footline}
+%{
+%  \leavevmode%
+%  \hbox{%
+%  \begin{beamercolorbox}[wd=\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}%
+%    \usebeamerfont{author in head/foot}\insertsection\hspace*{2em}>\hspace*{2em}\insertsubsection
+%  \end{beamercolorbox}}%
+%  \vskip0pt%
+%}
+\setbeamertemplate{navigation symbols}{}
+
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+%\usepackage[french]{babel}
+%\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+%\usepackage{svg}
+%\usepackage{url}
+%\usepackage{hyperref}
+%\usepackage{columns}
+%\usepackage{tabularx}
+%\usepackage{multirow}
+%\usepackage{enumerate}
+
+\author{Mathieu Nassif}
+\title{Extending Gradient-based TD and TDC to Nonlinear Cases}
+\subtitle{COMP 767 -- Reinforcement Learning}
+\institute{McGill University} 
+\date{March 24, 2017}
+
+%\graphicspath{{images/}}
+
+%\AtBeginSection[]{
+%	{
+%	\setbeamertemplate{footline}{}
+%	\begin{frame}{\insertsectionhead}
+%	\tableofcontents[currentsection, hideallsubsections]
+%	\end{frame}
+%	}
+%}
+
+%\AtBeginSubsection[]{
+%	\begin{frame}{\insertsectionhead}
+%	\vfill
+%	\centering
+%	\insertsubsectionhead
+%	\vfill
+%	\end{frame}
+%}
+
+\begin{document}
+
+{
+	\setbeamertemplate{headline}{}
+	\setbeamertemplate{footline}{}
+	\begin{frame}
+		\titlepage
+	\end{frame}
+}
+
+\begin{frame}{Convergent Temporal-Difference Learning with Arbitrary Smooth Function Approximation}
+	By Hamid R. Maei, Csaba Szepesv\'{a}ri, Shalabh Bhatnagar, Doina Precup, David Silver and Richard S. Sutton
+\end{frame}
+
+\section{Linear Case}
+\subsection{}
+
+\begin{frame}{Context}
+	\begin{itemize}
+		\item Value Function $v$
+		\item Value Function Approximation $v_\theta$
+		\item Objective: Find value of parameter $\theta$
+		\vspace{1.5em}
+		\pause
+		\item Finite MDP
+		\item Error function: mean-square projected Bellman error
+		\vspace{1.5em}
+		\pause
+		\item Linear Case: $v_\theta(s) = \theta^T\phi(s)$
+		\item $\phi: \mathcal{S} \to \mathbb{R}^n$
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Current Approaches}
+	\textbf{Minimize \textit{mean-square projected Bellman error}}
+	
+	\centering
+	\includegraphics[width=0.6\linewidth]{MSPBE-linear}
+\end{frame}
+
+\begin{frame}{Implementation}
+	Based on $w \approx \mathbb{E}[\phi\phi^T]^{-1}\mathbb{E}[\delta\phi]$ \\
+	\qquad $\triangleright$ $w_{k+1} = w_k + \beta_k(\delta_k - \phi_k^Tw_k)\phi_k$
+	
+	\vspace{1em}
+	
+	\textbf{Gradient-based TD (GTD2)} \\
+	\qquad $\triangleright$ $\theta_{k+1} = \theta_k + \alpha_k(\phi_k - \gamma\phi_k')(\phi_k^Tw_k)$
+	
+	\vspace{1em}
+	
+	\textbf{TD with corrections (TDC)} \\
+	\qquad $\triangleright$ $\theta_{k+1} = \theta_k + \alpha_k\delta_k\phi_k - \alpha\gamma\phi_k'(\phi_k^Tw_k)$
+	
+	\vspace{1em}
+	
+	\pause
+	\begin{itemize}
+		\item Converge almost surely in the linear case
+		\item Each step executes in $O(n)$
+	\end{itemize}
+\end{frame}
+
+\section{Nonlinear Case}
+\subsection{}
+
+\begin{frame}{Nonlinear Cases}
+	\textit{What if the approximation function is not linear? Is there a way to adapt the preceding algorithms?}
+\end{frame}
+
+\begin{frame}{Problem}
+	\textbf{What can be the objective function?}
+	\vspace{1em}
+	
+	\begin{columns}[t]
+		\begin{column}{0.5\textwidth}
+			Naive projected Bellman error
+			
+			\includegraphics[width=0.8\linewidth]{MSPBE-nonlinear}
+			
+			\begin{itemize}
+				\item Computationally hard
+			\end{itemize}
+		\end{column}
+		\pause
+		\begin{column}{0.5\textwidth}
+			Alternative function
+			
+			\includegraphics[width=0.8\linewidth]{MSPBE-nonlinear-tangent}
+			
+			\begin{itemize}
+				\item Much easier
+			\end{itemize}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Implementation}
+	Based on the expression of the MSPBE as
+	$$ MSPBE(\theta) = \mathbb{E}[\delta\nabla{}v_\theta(s)]^T \mathbb{E}[\nabla{}v_\theta(s)\nabla{}v_\theta(s)^T]^{-1} \mathbb{E}[\delta\nabla{}v_\theta(s)] $$
+	{\footnotesize (similar to the linear case: $MSPBE(\theta) = \mathbb{E}[\delta\phi]^T\mathbb{E}[\phi\phi^T]^{-1}\mathbb{E}[\delta\phi]$)
+		
+	We substitute $\nabla{}v_\theta(s) = \phi$.}
+	
+	\vspace{1.5em}
+	We introduce
+	\begin{equation}
+		h_k = (\delta_k - \phi_k^Tw_k)\nabla^2v_{\theta_k}(s_k)w_k
+	\end{equation}
+	
+	\vspace{1.5em}
+	\textbf{Weights:}
+	\begin{equation} \label{eqn:w}
+		w_{k+1} = w_k + \beta_k(\delta_k - \phi_k^Tw_k)\phi_k
+	\end{equation}
+	\begin{flushright}
+		{\footnotesize Difference is in the $\phi$. Otherwise, it is the same expression.}
+	\end{flushright}
+	
+	\framebreak
+	
+	\textbf{GTD2:}
+	\begin{equation} \label{eqn:gtd}
+		\theta_{k+1} = \Gamma\left(\theta_k + \alpha_k\left((\theta_k - \gamma\theta_k')(\theta_k^Tw_k) - h_k\right)\right)
+	\end{equation}
+	
+	\textbf{TDC:}
+	\begin{equation} \label{eqn:tdc}
+		\theta_{k+1} = \Gamma\left(\theta_k + \alpha_k\left(\delta_k\phi_k - \gamma\phi_k'(\phi_k^Tw_k) - h_k\right)\right)
+	\end{equation}
+	
+	\vspace{1em}
+	
+	Where $\Gamma$ is a projection into a compact set with a set boundary. This is used to ensure divergence cannot happen at the firsts stages. In practice, it is often unused.
+	
+	\framebreak
+	
+	\textit{These expressions result from expanding the gradient of the MSPBE.}
+\end{frame}
+
+\section{Proof of Convergence}
+\subsection{}
+
+\begin{frame}{Convergence for GTD2}
+	\begin{itemize}
+		\item We focus on the proof of convergence of GTD2, for brevity. The proof of convergence for TDC is similar.
+		\item Due to time/space constraints, some details of the proof will be left apart. We will focus on the intuitive ideas where the technical details could hide them.
+	\end{itemize}
+\end{frame}
+	
+\begin{frame}{Conditions}
+	Throughout the proof, we assume the following.
+	\begin{itemize}
+		\item $v_\theta(s)$ is at least three times continuously differentiable with respect to $\theta$, for any $s$ where $d(s) > 0$.
+		\item The sequences $\{\alpha_k\}$ and $\{\beta_k\}$, $k \in \mathbb{N} \cup \{0\}$, contain only positive elements and respect $\sum \alpha_k = \infty$ and $\sum \alpha_k^2 < \infty$ (similarly for the $\beta_k$). Also, $\lim_{k \to \infty} \frac{\alpha_k}{\beta_k} = 0$.
+		\item All matrices for which we take the inverse are non-singular.
+		\vspace{1.5em}
+		\item The notation and context is the same as the one seen in class.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Gradient of the Objective Function}
+	Let $J(\theta)$ represents the mean-square projected Bellman error.
+%	$$J(\theta) = \mathbb{E}[\delta\phi]^T \mathbb{E}[\phi\phi^T]^{-1} \mathbb{E}[\delta\phi]$$
+	
+	Then,
+	\begin{align*}
+		\frac{1}{2} [\nabla{}J(\theta)]_i & = -(\partial_i \mathbb{E}[\delta\phi])^T\mathbb{E}[\phi\phi^T]^{-1}\mathbb{E}[\delta\phi] - \frac{1}{2}\mathbb{E}[\delta\phi]^T\partial_i(\mathbb{E}[\phi\phi^T]^{-1})\mathbb{E}[\delta\phi] \\
+		& = -\mathbb{E}[\partial_i(\delta\phi)]^Tw + \frac{1}{2}w^T\mathbb{E}[\partial_i(\phi\phi^T)]w \\
+		& = -\mathbb{E}[(\partial_i\delta)\phi^Tw] - \mathbb{E}[\delta(\partial_i\phi^T)w] + \mathbb{E}[\phi^Tw(\partial_i\phi^T)w]
+	\end{align*}
+	{\footnotesize First line is applying the gradient, second line is using the definition of $w$ and changing the order of expectation and derivative, and third line is using the identity $\frac{1}{2}w^T\partial_i(\phi\phi^T)w = \phi^Tw(\partial_i\phi^T)w$}.
+	
+	Finally, using $\nabla\delta = \gamma\phi' - \phi$ and $\nabla\phi^T = \nabla^2v_\theta(s)$
+	\begin{align*}
+		\frac{1}{2} [\nabla{}J(\theta)]_i & = -\mathbb{E}[(\gamma\phi' - \phi)\phi^Tw] - \mathbb{E}[(\delta - \phi^Tw)\nabla^2v_\theta(s)w]
+	\end{align*}
+	{\footnotesize We rewrite the first term as $-\mathbb{E}[\delta\phi] - \gamma\mathbb{E}[\phi'\phi^Tw]$ and the last term as $h(\theta, w)$.}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Proof of Convergence}
+	We show a (partial) proof of convergence of GTD2, omitting some details to focus on high-level ideas.
+	
+	The proof of convergence is done in 4 steps.
+	\begin{enumerate}
+		\item Rewrite the equations \ref{eqn:w} and \ref{eqn:gtd} as
+		$$w_{k+1} = w_k + \beta_k(f(\theta_k, w_k) + M_{k+1})$$
+		$$\theta_{k+1} = \Gamma(\theta_k + \alpha_k(g(\theta_k, w_k) + N_{k+1}))$$
+		with
+		$$f(\theta_k, w_k) = $$
+		
+		\framebreak
+		
+		\item We can show that there exist a compact set $B \subset \mathbb{R}^{2n}$ such that
+		\begin{enumerate}
+			\item Functions $f$ and $g$ are Lipschitz continuous over $B$, because $v_\theta(s)$ is three times continuously differentiable,
+			\item $(M_k, \mathcal{G}_k)$ and $(N_k, \mathcal{G}_k)$ are martingale difference sequences (a softer condition than i.i.d. sequence), where $\mathcal{G}_k$ is the sigma field generated by $\theta_i$, $w_i$, $r_i$, $s_i$, $0 \leqslant i \leqslant k$ and $s_j'$, $0 \leqslant j < k$, by definition and $\mathbb{E}[M_{k+1} | \mathcal{G}_k] = \mathbb{E}[N_{k+1} | \mathcal{G}_k] = 0$.
+			\item Given a starting point in $B$, the sequences $\{(w_k(\theta), \theta)\}$ and $\{(w, \theta_k)\}$ stay in $B$ almost surely. This follows using convergence, and because we work in a compact set.
+		\end{enumerate}
+		The last condition shows that the set will be used to contain (almost surely) the values of the iteration.
+		
+		\framebreak
+		
+		\item Given the operator $\hat{\Gamma}$, such that $\hat{\Gamma}v(\theta)$ is $v(\theta)$ if $\theta$ is in the interior of the compact set $C$, and its projection to the tangent space at $\theta$ otherwise.
+		
+		\vspace{1em}
+		Using a similar method (and intuition) as for the linear case, we show that the sequence of $\theta_k$ converges almost surely to the set of asymptotically stable equilibria of $\dot{\theta} = \hat{\Gamma} g(\theta, w_\theta)$, where $w_\theta$ is the equilibrium point of $\dot{w} = \mathbb{E}[\delta_\theta\phi_\theta] - \mathbb{E}[\phi_\theta\phi_\theta^T]w_\theta$.
+		
+		\vspace{1em}
+		$w_\theta = \mathbb{E}[\phi_\theta\phi_\theta^T]^{-1}\mathbb{E}[\delta_\theta\phi_\theta]$
+		
+		\framebreak
+		
+		\item Finally, using the expression of the gradient of the objective function, we see that $g(\theta, w_\theta) = -\frac{1}{2} \nabla{}J(\theta)$. Thus, the iterations converge.
+	\end{enumerate}
+\end{frame}
+
+\section{In Practice}
+\subsection{}
+
+\begin{frame}{A Quick Note on Empirical Results}
+	\includegraphics[width=\linewidth]{nonlinear_empirical_results}
+	
+	\pause
+	\vspace{2em}
+	
+	Nonlinear methods converge, whereas traditional TD diverges!
+	
+	TDC performs almost as well as TD, but GTD2 is slightly worse.
+\end{frame}
+
+\end{document}
